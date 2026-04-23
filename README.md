@@ -1,13 +1,12 @@
 # AI Agent Monitor
 
-A distributed system monitoring tool with rich UI that collects metrics from multiple hosts and displays them in a unified interface similar to sample-ui.txt.
+A distributed system monitoring tool that collects metrics from multiple hosts and displays them in a compact text format.
 
 ## Features
 
 - Collects system metrics (CPU, memory, GPU, network, vLLM stats)
 - Runs as agents on each host to collect and serve metrics via HTTP
-- Centralized server with rich curses-based UI to fetch and display metrics from multiple agents
-- Real-time updating display with network flow visualization
+- Centralized server fetches metrics from agents and displays them in a compact text format
 - Shows per-interface network statistics (like eno5, ens7f0np0)
 - Calculates and displays token generation rates (gen tokens/s, prompt tokens/s)
 - Supports monitoring multiple hosts simultaneously
@@ -16,7 +15,7 @@ A distributed system monitoring tool with rich UI that collects metrics from mul
 ## Components
 
 1. **agent.py** - Runs on each host to collect metrics and expose them via HTTP endpoint
-2. **server.py** - Runs on the display host to fetch metrics from agents and display them in a rich UI
+2. **server.py** - Runs on the display host to fetch metrics from agents and display them in a compact text format
 
 ## Installation
 
@@ -50,57 +49,28 @@ python server.py --hosts host1 host2 --port 8000         # Change default port f
 python server.py --hosts host1:9001 host2:8000 --port 7000  # Mix: host1 uses 9001, host2 uses 8000, default 7000 unused
 ```
 
-## UI Features
+## Output Format
 
-The monitor displays a rich interface showing:
-- Network flow visualization (TX/RX rates based on actual agent data)
-- Host details (server type, CPU, memory)
-- GPU utilization and memory usage
-- Per-interface network statistics (shows top 2 interfaces by traffic)
-- vLLM metrics (if available): token generation rates, requests completed/running/waiting, avg TTFT
-- Real-time updating display
-
-## Sample Output
-
-When you run the server, you will see an interface similar to:
+When you run the server, you will see output similar to:
 
 ```
-┌───────────────────────────┐
-│       HERMES AGENT        │
-└─────────────┬─────────────┘
-     ▲ 42.3 tok/s ▼ 128.7 tok/s
-          3.2 requests/s
-              │
-              │ vLLM Tokens
-              │
-──────────────┼── FRONTEND NETWORK · vLLM Tokens · Mgmt · User ────────-──┼────────────
-              │                                                           │
-    ▲ 524.3 MB/s ▼ 1.02 GB/s                               ▲ 12.1 MB/s ▼ 8.7 MB/s
-┌─────────────┴──────────────────────-─┐ ┌─────────────────────────────────┴──────-─────┐
-│             HOST 1                   │ │             HOST 2                           │
-│       Frontend (192.168.5.11)        │ │       Frontend (192.168.5.12)                │
-│                                      │ │                                              │
-│  ┌────────────────────────────────┐  │ │  ┌────────────────────────────────────────┐  │
-│  │ vLLM Server              :8000 │  │ │  │ Ray Worker                       :6379 │  │
-│  └────────────────────────────────┘  │ │  └────────────────────────────────────────┘  │
-│  ┌────────────────────────────────┐  │ │                                              │
-│  │ Ray Head                 :6379 │  │ │  CPU Use: 28.7%                              │
-│  └────────────────────────────────┘  │ │  CPU Mem: 31.4 / 128 GB                      │
-│                                      │ │                                              │
-│  CPU Use: 34.2%                      │ │  GPU 1 Use: 91.2%                            │
-│  CPU Mem: 48.1 / 128 GB              │ │  GPU 1 Mem: 68.9 / 80 GB                     │
-│                                      │ │                                              │
-│  GPU 1 Use: 87.4%                    │ │  GPU 2 Use: 89.6%                            │
-│  GPU 1 Mem: 71.2 / 80 GB             │ │  GPU 2 Mem: 70.3 / 80 GB                     │
-│                                      │ │                                              │
-│  GPU 2 Use: 82.9%                    │ │       Backend (1.1.1.12)                     │
-│  GPU 2 Mem: 65.7 / 80 GB             │ └────────────────────────────────┬────-────────┘
-│                                      │                    ▼ 11.2 GB/s ▲ 11.3 GB/s
-│       Backend (1.1.1.11)             │                                  │
-└─────────────┬────────────────────────┘                                  │
-    ▼ 11.4 GB/s ▲ 11.3 GB/s                                               │
-              │                                                           │
-──────────────┴── BACKEND NETWORK · Ray Control Plane · NCCL/RoCE ────--──┴────────────
+UCSC-C240-M7SX computing node (hostname: ai-01)
+
+CPU: 2 x INTEL(R) XEON(R) GOLD 6548Y+ with 32 cores
+GPU: 2 x NVIDIA L40S
+
+       Use     Memory Use
+
+ CPU    3.93%   25.0GiB/1.1TiB
+ GPU1    0%      42.6/45.0GiB
+ GPU2    0%      42.6/45.0GiB
+
+ NIC1 tx: 2.7 Mbps, rx: 40.8 Kbps (eno5)
+ NIC2 tx: 26.6 Kbps, rx: 26.6 Kbps (ens7f0np0)
+
+ LLM:  0.00 gen tokens/s,  0.00 prompt tokens/s [API up]
+ Requests: 1278 completed, 0 running, 0 waiting
+ Avg TTFT: 15.46 s
 ```
 
 ## Startup Flags/Options
@@ -115,6 +85,7 @@ When you run the server, you will see an interface similar to:
   - Example: `--hosts host1 host2:8000 host3`
 - `--refresh SECONDS` : Refresh interval in seconds (default: 5)
 - `--port PORT` : Default port to use for agents when no port is specified in the host list (default: 9001)
+- `--once` : Run once and exit (default: continuous monitoring)
 
 ## Metrics Collected
 
@@ -124,28 +95,29 @@ When you run the server, you will see an interface similar to:
 - **GPU**: Utilization percentage, memory used/total per GPU
 - **Network**: 
   - Aggregate transmit/receive speeds (bits per second)
-  - Per-interface statistics (shows top 2 interfaces by traffic)
+  - Per-interface statistics (shows top 2 interfaces by traffic with names)
 - **vLLM** (if available): 
   - Generated tokens per second
   - Prompt tokens per second  
   - Requests completed, running, waiting
   - Average Time To First Token (TTFT)
+  - Token generation rates (calculated over refresh interval)
 
 ## Architecture
 
 The system uses a pull-based model:
 - Each agent runs a lightweight HTTP server on `/metrics` endpoint
 - The server periodically fetches metrics from all configured agents
-- Metrics are displayed in a rich terminal UI using curses
+- Metrics are displayed in a compact text format in the terminal
 - The display updates at the specified refresh interval
 - Token rates are calculated by tracking changes in token counts between fetches
+- Works in any terminal without special dependencies (no curses required)
 
 ## Requirements
 
 - Python 3.6+
 - psutil library
 - Network access between server and agent hosts
-- Terminal with curses support (most Linux/macOS terminals work)
 
 ## License
 
