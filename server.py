@@ -15,7 +15,7 @@ from datetime import datetime
 import threading
 import math
 
-def fetch_metrics(host, port=8000, timeout=5):
+def fetch_metrics(host, port=9001, timeout=5):
     """Fetch metrics from a single agent."""
     url = f"http://{host}:{port}/metrics"
     try:
@@ -185,7 +185,7 @@ def draw_ui(stdscr, hosts_data):
     
     stdscr.refresh()
 
-def main(stdscr, hosts, refresh_interval=5):
+def main(stdscr, hosts, refresh_interval=5, default_port=9001):
     curses.curs_set(0)  # Hide cursor
     stdscr.nodelay(1)   # Non-blocking getch
     
@@ -199,10 +199,10 @@ def main(stdscr, hosts, refresh_interval=5):
             try:
                 port = int(port_str)
             except ValueError:
-                port = 8000
+                port = default_port
         else:
             host = host_spec
-            port = 8000
+            port = default_port
         
         metrics = fetch_metrics(host, port)
         hosts_data.append(metrics)
@@ -225,10 +225,10 @@ def main(stdscr, hosts, refresh_interval=5):
                     try:
                         port = int(port_str)
                     except ValueError:
-                        port = 8000
+                        port = default_port
                 else:
                     host = host_spec
-                    port = 8000
+                    port = default_port
                 
                 metrics = fetch_metrics(host, port)
                 hosts_data.append(metrics)
@@ -244,15 +244,18 @@ if __name__ == '__main__':
                         help='List of agent hosts (hostname or IP, can include port with :)')
     parser.add_argument('--refresh', type=int, default=5,
                         help='Refresh interval in seconds (default: 5)')
+    parser.add_argument('--port', type=int, default=9001,
+                        help='Default port where agents are listening if not specified in host (default: 9001)')
     
     args = parser.parse_args()
     
     print(f"Starting AI Agent Monitor with UI...")
     print(f"Monitoring {len(args.hosts)} host(s)")
+    print(f"Default agent port: {args.port}")
     print(f"Refresh interval: {args.refresh}s")
     print("Press 'q' to quit the UI\n")
     
     try:
-        curses.wrapper(lambda stdscr: main(stdscr, args.hosts, args.refresh))
+        curses.wrapper(lambda stdscr: main(stdscr, args.hosts, args.refresh, args.port))
     except KeyboardInterrupt:
         print("\nMonitoring stopped.")

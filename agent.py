@@ -290,6 +290,6 @@ def run_server(port=8000):
 if __name__ == '__main__':
     import argparse
     parser = argparse.ArgumentParser(description='AI Agent Metrics Collector')
-    parser.add_argument('--port', type=int, default=8000, help='Port to listen on')
+    parser.add_argument('--port', type=int, default=9001, help='Port to listen on')
     args = parser.parse_args()
     run_server(args.port)

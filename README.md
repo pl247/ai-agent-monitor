@@ -32,17 +32,20 @@ pip install psutil
 ### Start the agent on each host you want to monitor:
 
 ```bash
-python agent.py --port 8000
+python agent.py          # Uses default port 9001
+python agent.py --port 8000  # Use a custom port
 ```
 
 ### Start the server on your display host:
 
 ```bash
-# Monitor two hosts
+# Monitor two hosts using default agent port (9001)
 python server.py --hosts host1 host2 --refresh 5
 
-# Monitor hosts on non-standard ports
-python server.py --hosts host1:9000 host2:9000
+# Monitor hosts on custom ports (either specify in host list or change default)
+python server.py --hosts host1:8000 host2:8000          # Explicit ports
+python server.py --hosts host1 host2 --port 8000         # Change default port for all hosts
+python server.py --hosts host1:9001 host2:8000 --port 7000  # Mix: host1 uses 9001, host2 uses 8000, default 7000 unused
 ```
 
 ## UI Features
@@ -54,6 +57,62 @@ The monitor displays a rich interface showing:
 - vLLM metrics (if available)
 - Request statistics and TTFT
 - Real-time updating display
+
+## Sample Output
+
+When you run the server, you will see an interface similar to:
+
+```
+┌───────────────────────────┐
+│       HERMES AGENT        │
+└─────────────┬─────────────┘
+     ▲ 42.3 tok/s ▼ 128.7 tok/s
+          3.2 requests/s
+              │
+              │ vLLM Tokens
+              │
+──────────────┼── FRONTEND NETWORK · vLLM Tokens · Mgmt · User ────────-──┼────────────
+              │                                                           │
+    ▲ 524.3 MB/s ▼ 1.02 GB/s                               ▲ 12.1 MB/s ▼ 8.7 MB/s
+┌─────────────┴──────────────────────-─┐ ┌─────────────────────────────────┴──────-─────┐
+│             HOST 1                   │ │             HOST 2                           │
+│       Frontend (192.168.5.11)        │ │       Frontend (192.168.5.12)                │
+│                                      │ │                                              │
+│  ┌────────────────────────────────┐  │ │  ┌────────────────────────────────────────┐  │
+│  │ vLLM Server              :8000 │  │ │  │ Ray Worker                       :6379 │  │
+│  └────────────────────────────────┘  │ │  └────────────────────────────────────────┘  │
+│  ┌────────────────────────────────┐  │ │                                              │
+│  │ Ray Head                 :6379 │  │ │  CPU Use: 28.7%                              │
+│  └────────────────────────────────┘  │ │  CPU Mem: 31.4 / 128 GB                      │
+│                                      │ │                                              │
+│  CPU Use: 34.2%                      │ │  GPU 1 Use: 91.2%                            │
+│  CPU Mem: 48.1 / 128 GB              │ │  GPU 1 Mem: 68.9 / 80 GB                     │
+│                                      │ │                                              │
+│  GPU 1 Use: 87.4%                    │ │  GPU 2 Use: 89.6%                            │
+│  GPU 1 Mem: 71.2 / 80 GB             │ │  GPU 2 Mem: 70.3 / 80 GB                     │
+│                                      │ │                                              │
+│  GPU 2 Use: 82.9%                    │ │       Backend (1.1.1.12)                     │
+│  GPU 2 Mem: 65.7 / 80 GB             │ └────────────────────────────────┬────-────────┘
+│                                      │                    ▼ 11.2 GB/s ▲ 11.3 GB/s
+│       Backend (1.1.1.11)             │                                  │
+└─────────────┬────────────────────────┘                                  │
+    ▼ 11.4 GB/s ▲ 11.3 GB/s                                               │
+              │                                                           │
+──────────────┴── BACKEND NETWORK · Ray Control Plane · NCCL/RoCE ────--──┴────────────
+```
+
+## Startup Flags/Options
+
+### Agent (`agent.py`):
+- `--port PORT` : Port to listen on for metrics (default: 9001)
+
+### Server (`server.py`):
+- `--hosts HOST [HOST ...]` : List of agent hosts to monitor. Each host can be:
+  - `hostname` or `IP` (uses default port from `--port` or 9001 if not specified)
+  - `hostname:port` or `IP:port` (explicit port for that host)
+  - Example: `--hosts host1 host2:8000 host3`
+- `--refresh SECONDS` : Refresh interval in seconds (default: 5)
+- `--port PORT` : Default port to use for agents when no port is specified in the host list (default: 9001)
 
 ## Metrics Collected
 
