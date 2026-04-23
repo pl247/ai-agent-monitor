@@ -195,76 +195,34 @@ def get_memory_info():
     except:
         return "0B", "0B", "0B"
 
-def get_network_metrics(interval=0.2):
-    """
-    Get network transmit/receive speeds (aggregate and per-interface).
-    Returns a dict with:
-        - tx_bps: aggregate transmit speed in bits per second
-        - rx_bps: aggregate receive speed in bits per second
-        - interfaces: dict of interface name to {tx_bps, rx_bps, tx_human, rx_human}
-    """
+def get_network_stats(interval=1):
+    """Get network transmit/receive speeds."""
     try:
-        # Get initial counters
         tot_before = psutil.net_io_counters()
         pnic_before = psutil.net_io_counters(pernic=True)
         time.sleep(interval)
         tot_after = psutil.net_io_counters()
         pnic_after = psutil.net_io_counters(pernic=True)
         
-        # Aggregate speeds
-        tx_bps = (tot_after.bytes_sent - tot_before.bytes_sent) / interval * 8
-        rx_bps = (tot_after.bytes_recv - tot_before.bytes_recv) / interval * 8
-        
-        # Per-interface speeds
-        interfaces = {}
+        # Find primary non-loopback interface
         nic_names = list(pnic_after.keys())
         nic_names.sort()
         
         for name in nic_names:
-            # Skip loopback, docker, and bridge interfaces
             if name == 'lo' or name == 'docker0' or name.startswith('br-'):
                 continue
-            # Check if interface has an IPv4 address
             addrs = psutil.net_if_addrs().get(name, [])
-            if not any(addr.family == socket.AF_INET for addr in addrs):
-                continue
-            
-            stats_before = pnic_before[name]
-            stats_after = pnic_after[name]
-            
-            sent_speed_bps = (stats_after.bytes_sent - stats_before.bytes_sent) / interval * 8
-            recv_speed_bps = (stats_after.bytes_recv - stats_before.bytes_recv) / interval * 8
-            
-            # Convert to human readable (using the same function as elsewhere)
-            def format_bps(bps):
-                if bps < 1e3:
-                    return f"{bps:.0f} bps"
-                elif bps < 1e6:
-                    return f"{bps / 1e3:.1f} Kbps"
-                elif bps < 1e9:
-                    return f"{bps / 1e6:.1f} Mbps"
-                else:
-                    return f"{bps / 1e9:.1f} Gbps"
-            
-            interfaces[name] = {
-                'tx_bps': sent_speed_bps,
-                'rx_bps': recv_speed_bps,
-                'tx_human': format_bps(sent_speed_bps),
-                'rx_human': format_bps(recv_speed_bps)
-            }
-        
-        return {
-            'tx_bps': tx_bps,
-            'rx_bps': rx_bps,
-            'interfaces': interfaces
-        }
-    except Exception as e:
-        # In case of error, return zeros and empty interfaces
-        return {
-            'tx_bps': 0.0,
-            'rx_bps': 0.0,
-            'interfaces': {}
-        }
+            if any(addr.family == socket.AF_INET for addr in addrs):
+                stats_before = pnic_before[name]
+                stats_after = pnic_after[name]
+                
+                sent_speed_bps = (stats_after.bytes_sent - stats_before.bytes_sent) / interval * 8
+                recv_speed_bps = (stats_after.bytes_recv - stats_before.bytes_recv) / interval * 8
+                
+                return sent_speed_bps, recv_speed_bps
+        return 0, 0
+    except:
+        return 0, 0
 
 def collect_all_metrics():
     """Collect all metrics for this host."""
@@ -297,11 +255,9 @@ def collect_all_metrics():
             'utilization_percent': util
         })
     
-    # Network metrics
-    net_metrics = get_network_metrics(interval=0.2)
-    metrics['network_tx_bps'] = net_metrics['tx_bps']
-    metrics['network_rx_bps'] = net_metrics['rx_bps']
-    metrics['network_interfaces'] = net_metrics['interfaces']
+    # Network (placeholder - would need interval measurement)
+    metrics['network_tx_bps'] = 0
+    metrics['network_rx_bps'] = 0
     
     # Try to get vLLM metrics if available
     api_urls = ["http://localhost:8000/metrics", "http://localhost:8001/metrics"]
@@ -325,7 +281,7 @@ def collect_all_metrics():
     
     return metrics
 
-def run_server(port=9001):
+def run_server(port=8000):
     server_address = ('', port)
     httpd = HTTPServer(server_address, MetricsHandler)
     print(f"Metrics agent running on port {port}")

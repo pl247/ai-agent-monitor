@@ -8,6 +8,8 @@ A distributed system monitoring tool with rich UI that collects metrics from mul
 - Runs as agents on each host to collect and serve metrics via HTTP
 - Centralized server with rich curses-based UI to fetch and display metrics from multiple agents
 - Real-time updating display with network flow visualization
+- Shows per-interface network statistics (like eno5, ens7f0np0)
+- Calculates and displays token generation rates (gen tokens/s, prompt tokens/s)
 - Supports monitoring multiple hosts simultaneously
 - Displays detailed host information including server type, CPU, memory, GPU usage
 
@@ -51,11 +53,11 @@ python server.py --hosts host1:9001 host2:8000 --port 7000  # Mix: host1 uses 90
 ## UI Features
 
 The monitor displays a rich interface showing:
-- Network flow visualization (TX/RX rates)
+- Network flow visualization (TX/RX rates based on actual agent data)
 - Host details (server type, CPU, memory)
 - GPU utilization and memory usage
-- vLLM metrics (if available)
-- Request statistics and TTFT
+- Per-interface network statistics (shows top 2 interfaces by traffic)
+- vLLM metrics (if available): token generation rates, requests completed/running/waiting, avg TTFT
 - Real-time updating display
 
 ## Sample Output
@@ -120,8 +122,14 @@ When you run the server, you will see an interface similar to:
 - **CPU**: Usage percentage, sockets, cores, type
 - **Memory**: Used/total/available
 - **GPU**: Utilization percentage, memory used/total per GPU
-- **Network**: Transmit/receive speeds
-- **vLLM** (if available): Generated tokens, prompt tokens, requests completed/running/waiting, avg TTFT
+- **Network**: 
+  - Aggregate transmit/receive speeds (bits per second)
+  - Per-interface statistics (shows top 2 interfaces by traffic)
+- **vLLM** (if available): 
+  - Generated tokens per second
+  - Prompt tokens per second  
+  - Requests completed, running, waiting
+  - Average Time To First Token (TTFT)
 
 ## Architecture
 
@@ -130,6 +138,7 @@ The system uses a pull-based model:
 - The server periodically fetches metrics from all configured agents
 - Metrics are displayed in a rich terminal UI using curses
 - The display updates at the specified refresh interval
+- Token rates are calculated by tracking changes in token counts between fetches
 
 ## Requirements
 
