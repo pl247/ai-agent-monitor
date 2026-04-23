@@ -207,7 +207,7 @@ def draw_ui(stdscr, hosts_data, token_rates):
                         stdscr.addstr(net_start + 1 + idx*2, host2_x + 2, f"{name}:")
                         stdscr.addstr(net_start + 2 + idx*2, host2_x + 2, f"  tx: {data['tx_human']}, rx: {data['rx_human']}")
                 else:
-                    stdscr.addstr(net_start + 1, host2_x + 2, "  No active interfaces")
+                    stdscr.addstr(net_start + 1, host2_x + 2, f"  No active interfaces")
                 
                 # Backend
                 backend_start = net_start + 3 + max(0, min(len(ifaces), 2)*2)
@@ -241,6 +241,8 @@ def main(stdscr, hosts, refresh_interval=5, default_port=9001):
     
     # State for token rate calculation: host_key -> {last_gen, last_prompt, last_time}
     token_state = {}
+    # Initialize token_rates as empty dict, will be updated when we have data
+    token_rates = {}
     
     # Initial data fetch
     hosts_data = []
@@ -269,7 +271,7 @@ def main(stdscr, hosts, refresh_interval=5, default_port=9001):
             }
     
     # Main loop
-    last_update = time.time()
+            last_update = time.time() - refresh_interval
     while True:
         # Check for user input
         key = stdscr.getch()
@@ -295,7 +297,7 @@ def main(stdscr, hosts, refresh_interval=5, default_port=9001):
                 hosts_data.append(metrics)
             
             # Update token state and compute rates
-            token_rates = {}  # host_key -> {gen: rate, prompt: rate}
+            new_token_rates = {}  # host_key -> {gen: rate, prompt: rate}
             for host_data in hosts_data:
                 if 'error' not in host_data and host_data.get('vllm_available', False):
                     host_key = host_data['host']
@@ -319,7 +321,7 @@ def main(stdscr, hosts, refresh_interval=5, default_port=9001):
                         gen_rate = 0.0
                         prompt_rate = 0.0
                     
-                    token_rates[host_key] = {'gen': gen_rate, 'prompt': prompt_rate}
+                    new_token_rates[host_key] = {'gen': gen_rate, 'prompt': prompt_rate}
                     
                     # Update state
                     token_state[host_key] = {
@@ -327,10 +329,11 @@ def main(stdscr, hosts, refresh_interval=5, default_port=9001):
                         'last_prompt': current_prompt,
                         'last_time': current_time
                     }
+            token_rates = new_token_rates
             
             last_update = current_time
         
-        # Draw UI with current hosts_data and token_rates (from last update)
+        # Draw UI with current hosts_data and token_rates
         draw_ui(stdscr, hosts_data, token_rates)
         time.sleep(0.1)  # Small delay to prevent excessive CPU usage
 
