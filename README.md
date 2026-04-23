@@ -1,20 +1,20 @@
 # AI Agent Monitor
 
-A distributed system monitoring tool that collects metrics from multiple hosts and displays them in a unified interface.
+A distributed system monitoring tool with rich UI that collects metrics from multiple hosts and displays them in a unified interface similar to sample-ui.txt.
 
 ## Features
 
-- Collects system metrics (CPU, memory, disk, network, TTFT, uptime)
+- Collects system metrics (CPU, memory, GPU, network, vLLM stats)
 - Runs as agents on each host to collect and serve metrics via HTTP
-- Centralized server to fetch and display metrics from multiple agents
-- Command-line options to exclude specific metrics
+- Centralized server with rich curses-based UI to fetch and display metrics from multiple agents
+- Real-time updating display with network flow visualization
 - Supports monitoring multiple hosts simultaneously
-- Real-time updating display
+- Displays detailed host information including server type, CPU, memory, GPU usage
 
 ## Components
 
 1. **agent.py** - Runs on each host to collect metrics and expose them via HTTP endpoint
-2. **server.py** - Runs on the display host to fetch metrics from agents and display them
+2. **server.py** - Runs on the display host to fetch metrics from agents and display them in a rich UI
 
 ## Installation
 
@@ -41,29 +41,35 @@ python agent.py --port 8000
 # Monitor two hosts
 python server.py --hosts host1 host2 --refresh 5
 
-# Exclude TTFT metric
-python server.py --hosts host1:8000 host2:8000 --exclude ttft
-
 # Monitor hosts on non-standard ports
-python server.py --hosts host1:9000 host2:9000 --port 9000
+python server.py --hosts host1:9000 host2:9000
 ```
+
+## UI Features
+
+The monitor displays a rich interface showing:
+- Network flow visualization (TX/RX rates)
+- Host details (server type, CPU, memory)
+- GPU utilization and memory usage
+- vLLM metrics (if available)
+- Request statistics and TTFT
+- Real-time updating display
 
 ## Metrics Collected
 
-- **CPU**: Usage percentage, core count, frequency
-- **Memory**: Used/total/percentage
-- **Swap**: Used/total/percentage (if available)
-- **Disk**: Used/total/percentage for root partition
-- **Network**: Bytes sent/received per second
-- **TTFT**: Time To First Token (if available from AI agent monitoring)
-- **Uptime**: System uptime since last boot
+- **Server**: Type/model information
+- **CPU**: Usage percentage, sockets, cores, type
+- **Memory**: Used/total/available
+- **GPU**: Utilization percentage, memory used/total per GPU
+- **Network**: Transmit/receive speeds
+- **vLLM** (if available): Generated tokens, prompt tokens, requests completed/running/waiting, avg TTFT
 
 ## Architecture
 
 The system uses a pull-based model:
 - Each agent runs a lightweight HTTP server on `/metrics` endpoint
 - The server periodically fetches metrics from all configured agents
-- Metrics are displayed in a formatted table in the terminal
+- Metrics are displayed in a rich terminal UI using curses
 - The display updates at the specified refresh interval
 
 ## Requirements
@@ -71,6 +77,7 @@ The system uses a pull-based model:
 - Python 3.6+
 - psutil library
 - Network access between server and agent hosts
+- Terminal with curses support (most Linux/macOS terminals work)
 
 ## License
 
