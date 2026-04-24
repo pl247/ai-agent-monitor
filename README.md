@@ -117,8 +117,8 @@ The system uses a pull-based model:
 
 - Python 3.6+
 - psutil library
-- Network access between server and agent hosts
-
 ## License
 
-MIT
+
+
+Apache License 2.0
